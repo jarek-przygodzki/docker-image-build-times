@@ -1,0 +1,39 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+
+unless Vagrant.has_plugin?("vagrant-reload")
+  puts 'Installing vagrant-reload Plugin...'
+  system('vagrant plugin install vagrant-reload')
+end
+
+Vagrant.configure("2") do |config|
+  config.vm.box = "ol75"
+  config.vm.box_url = 'https://yum.oracle.com/boxes/oraclelinux/ol75/ol75.box'
+
+  config.vm.box_check_update = false
+
+  config.vm.provider "virtualbox" do |vb|
+     # Customize the amount of memory on the VM:
+     vb.memory = "1024"
+  end
+
+  config.vm.network "forwarded_port", guest: 2375, host: 2375
+
+  config.vm.provision "shell", inline: <<-SHELL
+    yum -y update
+    yum -y install docker-engine git go graphviz
+    # Disable redirect_dir to use native diff
+    echo 'options overlay redirect_dir=off' > /etc/modprobe.d/disable_overlay_redirect_dir.conf
+    sed -e '\\|OPTIONS=|s|.*|OPTIONS=--selinux-enabled --debug -H tcp://0.0.0.0:2375 -H unix://|g' -i /etc/sysconfig/docker
+    systemctl enable docker.service
+    systemctl daemon-reload
+    systemctl start docker
+    systemctl status docker
+    usermod -aG docker vagrant
+    yum clean all
+    rm -rf /var/cache/yum
+  SHELL
+
+  config.vm.provision :reload
+end
