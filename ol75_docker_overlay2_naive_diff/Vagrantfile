@@ -2,16 +2,25 @@
 # vi: set ft=ruby :
 
 
-unless Vagrant.has_plugin?("vagrant-reload")
-  puts 'Installing vagrant-reload Plugin...'
-  system('vagrant plugin install vagrant-reload')
-end
 
 Vagrant.configure("2") do |config|
   config.vm.box = "ol75"
   config.vm.box_url = 'https://yum.oracle.com/boxes/oraclelinux/ol75/ol75.box'
 
   config.vm.box_check_update = false
+
+  [
+    { :name => "vagrant-reload",  :version => ">= 0.0.1" },
+    { :name => "vagrant-vbguest", :version => ">= 0.15.0"}
+  ].each do |plugin|
+    Vagrant::Plugin::Manager.instance.installed_specs.any? do |s|
+      req = Gem::Requirement.new([plugin[:version]])
+      if (not req.satisfied_by?(s.version)) && plugin[:name] == s.name
+        puts "Installing #{plugin[:name]} Plugin..."
+        system("vagrant plugin install #{plugin[:name]}")
+      end
+    end
+  end
 
   config.vm.provider "virtualbox" do |vb|
      # Customize the amount of memory on the VM:
